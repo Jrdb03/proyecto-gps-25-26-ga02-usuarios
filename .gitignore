@@ -1,0 +1,6 @@
+# Ignore Databases
+*.sqlite3
+
+# Ignore Init Files
+*/__init__
+
