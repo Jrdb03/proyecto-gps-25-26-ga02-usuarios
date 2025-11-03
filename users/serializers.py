@@ -8,7 +8,12 @@ class RegisterRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'username']  # username será el alias inicial
+        fields = ['email', 'password', 'username']
+        extra_kwargs = {
+            'email': {'required': True},
+            'username': {'required': True},
+            'password': {'required': True},
+        }
 
     def validate_email(self, value):
         # Validar que el email no existe

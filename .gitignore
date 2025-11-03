@@ -2,7 +2,7 @@
 .venv/*
 
 # Databases
-.sqlite
+*.sqlite3
 
 # Misc
 .idea
@@ -18,3 +18,6 @@ __pycache__/
 
 # Python init files
 */_init_.py
+
+#Tests
+/testing
