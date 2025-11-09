@@ -127,3 +127,123 @@ class UserRegistrationTests(TestCase):
         user = User.objects.get(email='test@example.com')
         self.assertTrue(user.user_id.startswith('u_'))
         self.assertEqual(len(user.user_id), 10)  # u_ + 8 caracteres
+
+
+class UserLoginTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.login_url = reverse('login')
+        # Crear un usuario de prueba
+        self.user = User.objects.create_user(
+            username='testuser242',
+            email='test242@example.com',
+            password='SecurePass242!'
+        )
+
+    def test_successful_login(self):
+        """Test: Login exitoso debe retornar tokens"""
+        payload = {
+            'email': 'test242@example.com',
+            'password': 'SecurePass242!'
+        }
+
+        response = self.client.post(
+            self.login_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access_token', response.data)
+        self.assertIn('refresh_token', response.data)
+        # Verificar que los tokens son strings no vacíos
+        self.assertTrue(len(response.data['access_token']) > 0)
+        self.assertTrue(len(response.data['refresh_token']) > 0)
+
+    def test_login_nonexistent_user(self):
+        """Test: Usuario inexistente debe retornar error 422"""
+        payload = {
+            'email': 'nonexistent@example.com',
+            'password': 'anypassword'
+        }
+
+        response = self.client.post(
+            self.login_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.data['code'], 'AUTH_ERROR')
+        self.assertIn('email', response.data['details'])
+
+    def test_login_wrong_password(self):
+        """Test: Contraseña incorrecta debe retornar error 422"""
+        payload = {
+            'email': 'test242@example.com',
+            'password': 'WrongPassword123!'
+        }
+
+        response = self.client.post(
+            self.login_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.data['code'], 'AUTH_ERROR')
+        self.assertIn('password', response.data['details'])
+
+    def test_login_missing_email(self):
+        """Test: Falta email debe retornar error 422"""
+        payload = {
+            'password': 'SecurePass123!'
+        }
+
+        response = self.client.post(
+            self.login_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn('email', response.data['details'])
+
+    def test_login_missing_password(self):
+        """Test: Falta password debe retornar error 422"""
+        payload = {
+            'email': 'test242@example.com'
+        }
+
+        response = self.client.post(
+            self.login_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn('password', response.data['details'])
+
+    def test_login_inactive_user(self):
+        """Test: Usuario inactivo debe retornar error"""
+        # Crear usuario inactivo
+        inactive_user = User.objects.create_user(
+            username='inactive',
+            email='inactive@example.com',
+            password='SecurePass123!',
+            is_active=False
+        )
+
+        payload = {
+            'email': 'inactive@example.com',
+            'password': 'SecurePass123!'
+        }
+
+        response = self.client.post(
+            self.login_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn('email', response.data['details'])
