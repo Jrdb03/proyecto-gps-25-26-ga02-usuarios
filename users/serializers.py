@@ -30,3 +30,38 @@ class RegisterRequestSerializer(serializers.ModelSerializer):
             alias=validated_data['username']  # alias igual a username inicialmente
         )
         return user
+
+
+class LoginRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        # Validar que ambos campos estén presentes
+        if email and password:
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                raise serializers.ValidationError({
+                    'email': 'No existe un usuario con este email.'
+                })
+
+            # Verificar la contraseña
+            if not user.check_password(password):
+                raise serializers.ValidationError({
+                    'password': 'La contraseña es incorrecta.'
+                })
+
+            # Verificar que el usuario esté activo
+            if not user.is_active:
+                raise serializers.ValidationError({
+                    'email': 'Esta cuenta está desactivada.'
+                })
+
+            # Si es correcto, añadir el usuario a los atributos validados
+            attrs['user'] = user
+
+        return attrs
