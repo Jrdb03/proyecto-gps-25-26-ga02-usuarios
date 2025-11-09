@@ -22,4 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/auth/register', views.register_user, name='register'),
     # Aquí añadiremos más endpoints después
+    path('api/v1/auth/login', views.login_user, name='login'),
 ]
