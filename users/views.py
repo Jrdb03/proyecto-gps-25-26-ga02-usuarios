@@ -68,24 +68,36 @@ def refresh_token(request):
     """
     Endpoint para refrescar tokens JWT
     """
-    refresh_token = request.data.get('refresh_token')
+    try:
+        refresh_token = request.data.get('refresh_token')
 
-    # Validar que el refresh token está presente
-    if not refresh_token:
+        # Validar que el refresh token está presente
+        if not refresh_token:
+            return Response(
+                {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Refresh token es requerido",
+                    "details": {"refresh_token": ["Este campo es requerido."]}
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+
+        # Validar y refrescar el token
+        refresh = RefreshToken(refresh_token)
+        new_tokens = {
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh)
+        }
+
+        return Response(new_tokens, status=status.HTTP_200_OK)
+
+    except TokenError as e:
+        # Token inválido o expirado
         return Response(
             {
-                "code": "VALIDATION_ERROR",
-                "message": "Refresh token es requerido",
-                "details": {"refresh_token": ["Este campo es requerido."]}
+                "code": "TOKEN_ERROR",
+                "message": "Token inválido o expirado",
+                "details": {"refresh_token": ["El token de refresh no es válido."]}
             },
-            status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            status=status.HTTP_401_UNAUTHORIZED
         )
-
-    # Validar y refrescar el token
-    refresh = RefreshToken(refresh_token)
-    new_tokens = {
-        'access_token': str(refresh.access_token),
-        'refresh_token': str(refresh)
-    }
-
-    return Response(new_tokens, status=status.HTTP_200_OK)
