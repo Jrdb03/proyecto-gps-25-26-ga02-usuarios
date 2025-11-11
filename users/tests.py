@@ -247,3 +247,77 @@ class UserLoginTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertIn('email', response.data['details'])
+
+
+# Pruebas para Refresh Token
+class TokenRefreshTests(TestCase):
+    """
+    Pruebas para el endpoint de refresh token
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.refresh_url = reverse('refresh-token')
+
+        # Crear usuario de prueba
+        self.user = User.objects.create_user(
+            username='testuser_refresh',
+            email='testrefresh@example.com',
+            password='testpass123'
+        )
+
+    def test_successful_token_refresh(self):
+        """PASO 2.1: Test que refresh exitoso retorna nuevos tokens"""
+        # Primero hacer login para obtener tokens válidos
+        login_response = self.client.post(reverse('login'), {
+            'email': 'testrefresh@example.com',
+            'password': 'testpass123'
+        })
+        refresh_token = login_response.data['refresh_token']
+
+        # Luego hacer refresh con el token obtenido
+        response = self.client.post(
+            self.refresh_url,
+            {'refresh_token': refresh_token},
+            format='json'
+        )
+
+        # Verificar respuesta exitosa
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access_token', response.data)
+        self.assertIn('refresh_token', response.data)
+
+        # Verificaciones
+        # 1. Los tokens tienen longitud razonable
+        self.assertTrue(len(response.data['access_token']) > 50)
+        self.assertTrue(len(response.data['refresh_token']) > 50)
+
+        # 2. Los tokens son strings no vacíos
+        self.assertIsInstance(response.data['access_token'], str)
+        self.assertIsInstance(response.data['refresh_token'], str)
+
+        # 3. Podemos verificar el formato JWT (opcional)
+        access_token = response.data['access_token']
+        self.assertTrue(access_token.count('.') == 2)  # Los JWT tienen 2 puntos
+
+    def test_refresh_missing_token(self):
+        """PASO 2.2: Test que falta refresh token retorna error 422"""
+        response = self.client.post(
+            self.refresh_url,
+            {},  # Body vacío - falta refresh_token
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn('refresh_token', response.data['details'])
+
+    def test_refresh_invalid_token(self):
+        """PASO 2.3: Test que token inválido retorna error 401"""
+        response = self.client.post(
+            self.refresh_url,
+            {'refresh_token': 'token.invalido.malformado'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.data['code'], 'TOKEN_ERROR')
