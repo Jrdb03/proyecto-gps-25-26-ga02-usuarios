@@ -9,7 +9,7 @@
 .DS_Store
 
 # Migrations
-*/migrations
+*/migrations/*
 !*/migrations/0001_initial.py
 
 # Cached files
