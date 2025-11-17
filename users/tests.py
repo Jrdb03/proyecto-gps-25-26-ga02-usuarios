@@ -3,6 +3,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 from .models import User
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class UserRegistrationTests(TestCase):
@@ -247,3 +248,119 @@ class UserLoginTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertIn('email', response.data['details'])
+
+
+class UserLogoutTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.logout_url = reverse('logout')
+
+        # Crear usuario y tokens
+        self.user = User.objects.create_user(
+            username='logoutuser',
+            email='logout@example.com',
+            password='SecurePass123!'
+        )
+
+        # Generar tokens válidos
+        refresh = RefreshToken.for_user(self.user)
+        self.valid_refresh_token = str(refresh)
+        self.valid_access_token = str(refresh.access_token)
+
+        # Token inválido para pruebas
+        self.invalid_refresh_token = 'invalid.token.here'
+
+    def test_successful_logout(self):
+        """Test: Logout exitoso debe retornar 200 y mensaje de éxito"""
+        # Autenticar al usuario primero
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.valid_access_token}')
+
+        payload = {
+            'refresh_token': self.valid_refresh_token
+        }
+
+        response = self.client.post(
+            self.logout_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['code'], 'LOGOUT_SUCCESS')
+        self.assertEqual(response.data['message'], 'Sesión cerrada correctamente')
+
+    def test_logout_invalid_token(self):
+        """Test: Logout con token inválido debe retornar error 422"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.valid_access_token}')
+
+        payload = {
+            'refresh_token': self.invalid_refresh_token
+        }
+
+        response = self.client.post(
+            self.logout_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.data['code'], 'INVALID_TOKEN')
+
+    def test_logout_missing_refresh_token(self):
+        """Test: Logout sin refresh_token debe retornar error 422"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.valid_access_token}')
+
+        payload = {
+            # Falta refresh_token
+        }
+
+        response = self.client.post(
+            self.logout_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.data['code'], 'VALIDATION_ERROR')
+        self.assertIn('refresh_token', response.data['details'])
+
+    def test_logout_without_authentication(self):
+        """Test: Logout sin autenticación debe retornar error 401"""
+        # No establecer credenciales de autenticación
+
+        payload = {
+            'refresh_token': self.valid_refresh_token
+        }
+
+        response = self.client.post(
+            self.logout_url,
+            payload,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_double_logout_same_token(self):
+        """Test: Logout dos veces con el mismo token debe fallar la segunda vez"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.valid_access_token}')
+
+        payload = {
+            'refresh_token': self.valid_refresh_token
+        }
+
+        # Primer logout exitoso
+        response1 = self.client.post(
+            self.logout_url,
+            payload,
+            format='json'
+        )
+        self.assertEqual(response1.status_code, status.HTTP_200_OK)
+
+        # Segundo logout debe fallar
+        response2 = self.client.post(
+            self.logout_url,
+            payload,
+            format='json'
+        )
+        self.assertEqual(response2.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response2.data['code'], 'INVALID_TOKEN')

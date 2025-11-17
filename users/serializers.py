@@ -65,3 +65,15 @@ class LoginRequestSerializer(serializers.Serializer):
             attrs['user'] = user
 
         return attrs
+
+
+class LogoutRequestSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(required=True)
+
+    def validate_refresh_token(self, value):
+        """
+        Validar que el refresh token tiene el formato correcto
+        """
+        if not value:
+            raise serializers.ValidationError("El refresh token es requerido")
+        return value

@@ -23,4 +23,5 @@ urlpatterns = [
     path('api/v1/auth/register', views.register_user, name='register'),
     # Aquí añadiremos más endpoints después
     path('api/v1/auth/login', views.login_user, name='login'),
+    path('api/v1/auth/logout', views.logout_user, name='logout'),
 ]
