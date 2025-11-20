@@ -24,4 +24,5 @@ urlpatterns = [
     # Aquí añadiremos más endpoints después
     path('api/v1/auth/login', views.login_user, name='login'),
     path('api/v1/auth/logout', views.logout_user, name='logout'),
+    path('api/v1/auth/password-reset/request', views.password_reset_request, name='password-reset-request'),
 ]
