@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User
+from .models import User, PasswordResetToken
 
 
 class RegisterRequestSerializer(serializers.ModelSerializer):
@@ -76,4 +76,14 @@ class LogoutRequestSerializer(serializers.Serializer):
         """
         if not value:
             raise serializers.ValidationError("El refresh token es requerido")
+        return value
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        # Verificar que el email existe en el sistema
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("No existe un usuario con este email")
         return value

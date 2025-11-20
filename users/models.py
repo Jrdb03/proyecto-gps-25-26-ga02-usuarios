@@ -39,3 +39,18 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.alias} ({self.email})"
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    def is_valid(self):
+        from django.utils import timezone
+        return not self.is_used and timezone.now() < self.expires_at
+
+    def __str__(self):
+        return f"Token for {self.user.email} - Valid: {self.is_valid()}"

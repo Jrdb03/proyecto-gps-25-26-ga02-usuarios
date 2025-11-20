@@ -1,15 +1,22 @@
 from django.shortcuts import render
-
-# Create your views here.
-from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .serializers import RegisterRequestSerializer, LoginRequestSerializer, LogoutRequestSerializer
-
+from .serializers import (
+    RegisterRequestSerializer,
+    LoginRequestSerializer,
+    LogoutRequestSerializer,
+    PasswordResetRequestSerializer,
+)
+from .models import User, PasswordResetToken
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from django.utils import timezone
+from datetime import timedelta
+import secrets
+from django.conf import settings
+
 
 
 @api_view(['POST'])
@@ -122,3 +129,57 @@ def logout_user(request):
             },
             status=status.HTTP_422_UNPROCESSABLE_ENTITY
         )
+
+@api_view(['POST'])
+def password_reset_request(request):
+    """
+    Endpoint para solicitar recuperación de contraseña (GA02-179)
+    """
+    if request.method == 'POST':
+        serializer = PasswordResetRequestSerializer(data=request.data)
+
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+
+            try:
+                user = User.objects.get(email=email)
+
+                # Generar token único
+                token = secrets.token_urlsafe(32)
+
+                # Crear o actualizar token de recuperación
+                reset_token, created = PasswordResetToken.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        'token': token,
+                        'expires_at': timezone.now() + timedelta(hours=24),
+                        'is_used': False
+                    }
+                )
+
+                # En desarrollo, retornamos el link para facilitar pruebas
+                reset_link = f"http://localhost:5173/reset-password?token={token}"
+
+                if settings.DEBUG:
+                    return Response({
+                        "message": "Solicitud de recuperación procesada",
+                        "reset_link": reset_link,
+                        "code": "RESET_REQUEST_SUCCESS"
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        "message": "Si el email existe en nuestro sistema, recibirás un enlace de recuperación",
+                        "code": "RESET_REQUEST_SUCCESS"
+                    }, status=status.HTTP_200_OK)
+
+            except User.DoesNotExist:
+                return Response({
+                    "message": "Si el email existe en nuestro sistema, recibirás un enlace de recuperación",
+                    "code": "RESET_REQUEST_SUCCESS"
+                }, status=status.HTTP_200_OK)
+
+        return Response({
+            "code": "VALIDATION_ERROR",
+            "message": "Error de validación",
+            "details": serializer.errors
+        }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
