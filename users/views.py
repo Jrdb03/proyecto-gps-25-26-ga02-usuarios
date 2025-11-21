@@ -8,6 +8,7 @@ from .serializers import (
     LoginRequestSerializer,
     LogoutRequestSerializer,
     PasswordResetRequestSerializer,
+    PasswordResetTokenSerializer,
 )
 from .models import User, PasswordResetToken
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -177,6 +178,45 @@ def password_reset_request(request):
                     "message": "Si el email existe en nuestro sistema, recibirás un enlace de recuperación",
                     "code": "RESET_REQUEST_SUCCESS"
                 }, status=status.HTTP_200_OK)
+
+        return Response({
+            "code": "VALIDATION_ERROR",
+            "message": "Error de validación",
+            "details": serializer.errors
+        }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@api_view(['POST'])
+def password_reset_validate_token(request):
+    """
+    Endpoint para validar token de recuperación (GA02-176)
+    """
+    if request.method == 'POST':
+        serializer = PasswordResetTokenSerializer(data=request.data)
+
+        if serializer.is_valid():
+            token = serializer.validated_data['token']
+
+            try:
+                reset_token = PasswordResetToken.objects.get(token=token)
+
+                if reset_token.is_valid():
+                    return Response({
+                        "message": "Token válido",
+                        "code": "TOKEN_VALID",
+                        "email": reset_token.user.email  # Opcional: para mostrar en el frontend
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        "code": "INVALID_TOKEN",
+                        "message": "Token inválido o expirado"
+                    }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+            except PasswordResetToken.DoesNotExist:
+                return Response({
+                    "code": "INVALID_TOKEN",
+                    "message": "Token inválido"
+                }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         return Response({
             "code": "VALIDATION_ERROR",

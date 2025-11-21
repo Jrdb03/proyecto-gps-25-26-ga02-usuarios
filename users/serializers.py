@@ -87,3 +87,18 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         if not User.objects.filter(email=value).exists():
             raise serializers.ValidationError("No existe un usuario con este email")
         return value
+
+
+class PasswordResetTokenSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True, max_length=100)
+
+    def validate_token(self, value):
+        # Verificar que el token existe y es válido
+        try:
+            reset_token = PasswordResetToken.objects.get(token=value)
+            if not reset_token.is_valid():
+                raise serializers.ValidationError("El token ha expirado o ya fue usado")
+        except PasswordResetToken.DoesNotExist:
+            raise serializers.ValidationError("Token inválido")
+
+        return value
