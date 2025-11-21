@@ -47,6 +47,7 @@ class PasswordResetToken(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     is_used = models.BooleanField(default=False)
+    request_count = models.IntegerField(default=1)
 
     def is_valid(self):
         from django.utils import timezone
