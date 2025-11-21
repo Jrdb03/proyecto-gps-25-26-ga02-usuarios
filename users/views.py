@@ -9,6 +9,7 @@ from .serializers import (
     LogoutRequestSerializer,
     PasswordResetRequestSerializer,
     PasswordResetTokenSerializer,
+    PasswordResetConfirmSerializer
 )
 from .models import User, PasswordResetToken
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -217,6 +218,39 @@ def password_reset_validate_token(request):
                     "code": "INVALID_TOKEN",
                     "message": "Token inválido"
                 }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        return Response({
+            "code": "VALIDATION_ERROR",
+            "message": "Error de validación",
+            "details": serializer.errors
+        }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@api_view(['POST'])
+def password_reset_confirm(request):
+    """
+    Endpoint para establecer nueva contraseña (GA02-175)
+    """
+    if request.method == 'POST':
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+
+        if serializer.is_valid():
+            reset_token = serializer.validated_data['reset_token']
+            new_password = serializer.validated_data['new_password']
+
+            # Actualizar contraseña del usuario
+            user = reset_token.user
+            user.set_password(new_password)
+            user.save()
+
+            # Marcar token como usado
+            reset_token.is_used = True
+            reset_token.save()
+
+            return Response({
+                "message": "Contraseña actualizada correctamente",
+                "code": "PASSWORD_RESET_SUCCESS"
+            }, status=status.HTTP_200_OK)
 
         return Response({
             "code": "VALIDATION_ERROR",

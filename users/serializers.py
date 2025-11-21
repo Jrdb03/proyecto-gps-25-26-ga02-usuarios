@@ -102,3 +102,24 @@ class PasswordResetTokenSerializer(serializers.Serializer):
             raise serializers.ValidationError("Token inválido")
 
         return value
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True, max_length=100)
+    new_password = serializers.CharField(required=True, min_length=8, validators=[validate_password])
+    confirm_password = serializers.CharField(required=True, min_length=8)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "Las contraseñas no coinciden"})
+
+        # Validar token
+        try:
+            reset_token = PasswordResetToken.objects.get(token=attrs['token'])
+            if not reset_token.is_valid():
+                raise serializers.ValidationError({"token": "El token ha expirado o ya fue usado"})
+        except PasswordResetToken.DoesNotExist:
+            raise serializers.ValidationError({"token": "Token inválido"})
+
+        attrs['reset_token'] = reset_token
+        return attrs
