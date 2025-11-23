@@ -324,3 +324,4 @@ def password_reset_confirm(request):
         }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 # TO-DO generar muestra
+# TO-DO devolver URL muestra
