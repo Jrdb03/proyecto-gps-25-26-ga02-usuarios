@@ -1,4 +1,7 @@
 from django.shortcuts import render
+
+# Create your views here.
+from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -130,6 +133,46 @@ def logout_user(request):
                 "details": serializer.errors
             },
             status=status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+
+
+@api_view(['POST'])
+def refresh_token(request):
+    """
+    Endpoint para refrescar tokens JWT
+    """
+    try:
+        refresh_token = request.data.get('refresh_token')
+
+        # Validar que el refresh token está presente
+        if not refresh_token:
+            return Response(
+                {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Refresh token es requerido",
+                    "details": {"refresh_token": ["Este campo es requerido."]}
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+
+        # Validar y refrescar el token
+        refresh = RefreshToken(refresh_token)
+        new_tokens = {
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh)
+        }
+
+        return Response(new_tokens, status=status.HTTP_200_OK)
+
+    except TokenError as e:
+        # Token inválido o expirado
+        return Response(
+            {
+                "code": "TOKEN_ERROR",
+                "message": "Token inválido o expirado",
+                "details": {"refresh_token": ["El token de refresh no es válido."]}
+            },
+            status=status.HTTP_401_UNAUTHORIZED
         )
 
 @api_view(['POST'])
