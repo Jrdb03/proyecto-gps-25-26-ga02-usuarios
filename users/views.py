@@ -325,3 +325,4 @@ def password_reset_confirm(request):
 
 # TO-DO generar muestra
 # TO-DO devolver URL muestra
+# TO-DO manejar errores
