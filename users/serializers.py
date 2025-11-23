@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User
+from .models import User, PasswordResetToken
 
 
 class RegisterRequestSerializer(serializers.ModelSerializer):
@@ -77,3 +77,49 @@ class LogoutRequestSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("El refresh token es requerido")
         return value
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        # Verificar que el email existe en el sistema
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("No existe un usuario con este email")
+        return value
+
+
+class PasswordResetTokenSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True, max_length=100)
+
+    def validate_token(self, value):
+        # Verificar que el token existe y es válido
+        try:
+            reset_token = PasswordResetToken.objects.get(token=value)
+            if not reset_token.is_valid():
+                raise serializers.ValidationError("El token ha expirado o ya fue usado")
+        except PasswordResetToken.DoesNotExist:
+            raise serializers.ValidationError("Token inválido")
+
+        return value
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True, max_length=100)
+    new_password = serializers.CharField(required=True, min_length=8, validators=[validate_password])
+    confirm_password = serializers.CharField(required=True, min_length=8)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "Las contraseñas no coinciden"})
+
+        # Validar token
+        try:
+            reset_token = PasswordResetToken.objects.get(token=attrs['token'])
+            if not reset_token.is_valid():
+                raise serializers.ValidationError({"token": "El token ha expirado o ya fue usado"})
+        except PasswordResetToken.DoesNotExist:
+            raise serializers.ValidationError({"token": "Token inválido"})
+
+        attrs['reset_token'] = reset_token
+        return attrs

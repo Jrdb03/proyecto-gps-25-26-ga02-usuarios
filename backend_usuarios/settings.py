@@ -156,3 +156,5 @@ CORS_ALLOWED_ORIGINS = [
 
 # O si quieres permitir todos los localhost durante desarrollo:
 # CORS_ALLOW_ALL_ORIGINS = True  # ← SOLO PARA DESARROLLO
+
+FRONTEND_URL = 'http://localhost:5173'
