@@ -123,3 +123,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
         attrs['reset_token'] = reset_token
         return attrs
+
+
+# Validar seguimiento
