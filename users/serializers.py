@@ -124,4 +124,5 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         attrs['reset_token'] = reset_token
         return attrs
 
-# TO-DO validar ID cancion
+# TO-DO validar ID canción
+# TO-DO buscar canción
