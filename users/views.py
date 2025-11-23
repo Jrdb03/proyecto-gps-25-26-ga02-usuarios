@@ -322,3 +322,5 @@ def password_reset_confirm(request):
             "message": "Error de validación",
             "details": serializer.errors
         }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+# TO-DO generar muestra
