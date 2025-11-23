@@ -325,3 +325,4 @@ def password_reset_confirm(request):
 
 
 # TO-DO notificar lanzamiento
+# TO-DO devolver datos al frontend
