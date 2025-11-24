@@ -161,24 +161,22 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ['alias', 'avatar_url', 'bio', 'country', 'preferences']
 
-    def validate_alias(self, value):
-        """Validar que el alias sea único (excepto para el usuario actual)"""
-        if value:
+    def validate(self, attrs):
+        """Validación a nivel de objeto para el alias único"""
+        # Obtener el alias si se está intentando actualizar
+        alias = attrs.get('alias')
+
+        if alias and self.instance:
             # Verificar si otro usuario ya tiene este alias
-            user = self.instance
-            if User.objects.filter(alias=value).exclude(pk=user.pk).exists():
-                raise serializers.ValidationError("Este alias ya está en uso. Por favor, elige otro.")
-        return value
+            if User.objects.filter(alias=alias).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError({
+                    'alias': 'Este alias ya está en uso. Por favor, elige otro.'
+                })
+
+        return attrs
 
     def validate_preferences(self, value):
         """Validar la estructura de las preferencias"""
         if not isinstance(value, dict):
             raise serializers.ValidationError("Las preferencias deben ser un objeto JSON.")
-
-        # Validar campos específicos de preferencias si es necesario
-        allowed_preferences = ['language', 'explicit_filter']
-        for key in value.keys():
-            if key not in allowed_preferences:
-                raise serializers.ValidationError(f"Preferencia no permitida: {key}")
-
         return value
