@@ -28,4 +28,5 @@ urlpatterns = [
     path('api/v1/auth/password-reset/request', views.password_reset_request, name='password-reset-request'),
     path('api/v1/auth/password-reset/validate-token', views.password_reset_validate_token, name='password-reset-validate'),
     path('api/v1/auth/password-reset/confirm', views.password_reset_confirm, name='password-reset-confirm'),
+    path('api/v1/me', views.user_profile, name='user-profile'),
 ]
