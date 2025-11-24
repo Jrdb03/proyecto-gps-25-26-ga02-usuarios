@@ -12,7 +12,9 @@ from .serializers import (
     LogoutRequestSerializer,
     PasswordResetRequestSerializer,
     PasswordResetTokenSerializer,
-    PasswordResetConfirmSerializer
+    PasswordResetConfirmSerializer,
+    UserProfileSerializer,
+    UserProfileUpdateSerializer
 )
 from .models import User, PasswordResetToken
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -322,3 +324,41 @@ def password_reset_confirm(request):
             "message": "Error de validación",
             "details": serializer.errors
         }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    # Endpoints para el perfil de usuario (/me)
+    @api_view(['GET', 'PATCH'])
+    @permission_classes([IsAuthenticated])
+    def user_profile(request):
+        """
+        Endpoint para obtener y actualizar el perfil del usuario autenticado
+        GET: Obtener perfil completo
+        PATCH: Actualizar campos del perfil (parcialmente)
+        """
+
+        if request.method == 'GET':
+            serializer = UserProfileSerializer(request.user)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        elif request.method == 'PATCH':
+            serializer = UserProfileUpdateSerializer(
+                request.user,
+                data=request.data,
+                partial=True  # Permite actualización parcial
+            )
+
+            if serializer.is_valid():
+                serializer.save()
+
+                # Devolver el perfil completo actualizado
+                profile_serializer = UserProfileSerializer(request.user)
+                return Response(profile_serializer.data, status=status.HTTP_200_OK)
+
+            # Si hay errores de validación
+            return Response(
+                {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Error de validación",
+                    "details": serializer.errors
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )

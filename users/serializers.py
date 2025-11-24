@@ -134,51 +134,51 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return attrs
 
     # Serializers para el endpoint /me
-    class UserProfileSerializer(serializers.ModelSerializer):
-        """Serializer para obtener el perfil del usuario (GET /me)"""
-        user_type_display = serializers.CharField(source='get_user_type_display', read_only=True)
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer para obtener el perfil del usuario (GET /me)"""
+    user_type_display = serializers.CharField(source='get_user_type_display', read_only=True)
 
-        class Meta:
-            model = User
-            fields = [
-                'user_id',
-                'email',
-                'username',
-                'alias',
-                'avatar_url',
-                'bio',
-                'country',
-                'user_type',
-                'user_type_display',
-                'preferences'
-            ]
-            read_only_fields = ['user_id', 'email', 'username', 'user_type']  # Estos campos no se pueden modificar
+    class Meta:
+        model = User
+        fields = [
+            'user_id',
+            'email',
+            'username',
+            'alias',
+            'avatar_url',
+            'bio',
+            'country',
+            'user_type',
+            'user_type_display',
+            'preferences'
+        ]
+        read_only_fields = ['user_id', 'email', 'username', 'user_type']  # Estos campos no se pueden modificar
 
-    class UserProfileUpdateSerializer(serializers.ModelSerializer):
-        """Serializer para actualizar el perfil del usuario (PATCH /me)"""
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para actualizar el perfil del usuario (PATCH /me)"""
 
-        class Meta:
-            model = User
-            fields = ['alias', 'avatar_url', 'bio', 'country', 'preferences']
+    class Meta:
+        model = User
+        fields = ['alias', 'avatar_url', 'bio', 'country', 'preferences']
 
-        def validate_alias(self, value):
-            """Validar que el alias sea único (excepto para el usuario actual)"""
-            if value:
-                # Verificar si otro usuario ya tiene este alias
-                user = self.instance
-                if User.objects.filter(alias=value).exclude(pk=user.pk).exists():
-                    raise serializers.ValidationError("Este alias ya está en uso. Por favor, elige otro.")
-            return value
+    def validate_alias(self, value):
+        """Validar que el alias sea único (excepto para el usuario actual)"""
+        if value:
+            # Verificar si otro usuario ya tiene este alias
+            user = self.instance
+            if User.objects.filter(alias=value).exclude(pk=user.pk).exists():
+                raise serializers.ValidationError("Este alias ya está en uso. Por favor, elige otro.")
+        return value
 
-        def validate_preferences(self, value):
-            """Validar la estructura de las preferencias"""
-            if not isinstance(value, dict):
-                raise serializers.ValidationError("Las preferencias deben ser un objeto JSON.")
+    def validate_preferences(self, value):
+        """Validar la estructura de las preferencias"""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Las preferencias deben ser un objeto JSON.")
 
-            # Validar campos específicos de preferencias si es necesario
-            allowed_preferences = ['language', 'explicit_filter']
-            for key in value.keys():
-                if key not in allowed_preferences:
-                    raise serializers.ValidationError(f"Preferencia no permitida: {key}")
+        # Validar campos específicos de preferencias si es necesario
+        allowed_preferences = ['language', 'explicit_filter']
+        for key in value.keys():
+            if key not in allowed_preferences:
+                raise serializers.ValidationError(f"Preferencia no permitida: {key}")
 
-            return value
+        return value
