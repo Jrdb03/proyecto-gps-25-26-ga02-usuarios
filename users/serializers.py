@@ -8,11 +8,12 @@ class RegisterRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'username']
+        fields = ['email', 'password', 'username', 'user_type']
         extra_kwargs = {
             'email': {'required': True},
             'username': {'required': True},
             'password': {'required': True},
+            'user_type': {'required': True}
         }
 
     def validate_email(self, value):
@@ -21,13 +22,21 @@ class RegisterRequestSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Este email ya está registrado")
         return value
 
+    def validate_user_type(self, value):
+        # 🔄 NUEVO: Validar que el tipo de usuario es válido
+        valid_types = ['user', 'artist', 'admin', 'label']
+        if value not in valid_types:
+            raise serializers.ValidationError("Tipo de usuario no válido")
+        return value
+
     def create(self, validated_data):
         # Crear usuario con contraseña encriptada
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
-            alias=validated_data['username']  # alias igual a username inicialmente
+            alias=validated_data['username'],  # alias igual a username inicialmente
+            user_type=validated_data['user_type']
         )
         return user
 
@@ -123,3 +132,51 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
         attrs['reset_token'] = reset_token
         return attrs
+
+    # Serializers para el endpoint /me
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer para obtener el perfil del usuario (GET /me)"""
+    user_type_display = serializers.CharField(source='get_user_type_display', read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'user_id',
+            'email',
+            'username',
+            'alias',
+            'avatar_url',
+            'bio',
+            'country',
+            'user_type',
+            'user_type_display',
+            'preferences'
+        ]
+        read_only_fields = ['user_id', 'email', 'username', 'user_type']  # Estos campos no se pueden modificar
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para actualizar el perfil del usuario (PATCH /me)"""
+
+    class Meta:
+        model = User
+        fields = ['alias', 'avatar_url', 'bio', 'country', 'preferences']
+
+    def validate(self, attrs):
+        """Validación a nivel de objeto para el alias único"""
+        # Obtener el alias si se está intentando actualizar
+        alias = attrs.get('alias')
+
+        if alias and self.instance:
+            # Verificar si otro usuario ya tiene este alias
+            if User.objects.filter(alias=alias).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError({
+                    'alias': 'Este alias ya está en uso. Por favor, elige otro.'
+                })
+
+        return attrs
+
+    def validate_preferences(self, value):
+        """Validar la estructura de las preferencias"""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Las preferencias deben ser un objeto JSON.")
+        return value
