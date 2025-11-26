@@ -438,3 +438,162 @@ class TokenRefreshTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(response.data['code'], 'TOKEN_ERROR')
+
+
+# Pruebas para el endpoint /me
+class UserProfileTests(TestCase):
+    """
+    Pruebas para el endpoint /me (perfil de usuario)
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.profile_url = reverse('user-profile')
+
+        # Crear usuarios de prueba
+        self.user = User.objects.create_user(
+            username='testuser_profile',
+            email='testprofile@example.com',
+            password='testpass123',
+            alias='testalias',
+            bio='Biografía de prueba',
+            country='España',
+            user_type='artist'  # Tipo de usuario artista
+        )
+
+        # Otro usuario para pruebas de alias único
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='testpass123',
+            alias='aliasunico',
+            user_type='user'
+        )
+
+        # Obtener tokens para autenticación
+        login_response = self.client.post(reverse('login'), {
+            'email': 'testprofile@example.com',
+            'password': 'testpass123'
+        })
+        self.access_token = login_response.data['access_token']
+
+        # Configurar cliente autenticado
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+
+    def test_get_profile_authenticated(self):
+        """Test 1: Usuario autenticado puede obtener su perfil"""
+        response = self.client.get(self.profile_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['email'], 'testprofile@example.com')
+        self.assertEqual(response.data['alias'], 'testalias')
+        self.assertEqual(response.data['bio'], 'Biografía de prueba')
+        self.assertEqual(response.data['country'], 'España')
+        self.assertEqual(response.data['user_type'], 'artist')  # Verificar tipo
+        self.assertEqual(response.data['user_type_display'], 'Artista')  # Display name
+
+    def test_get_profile_unauthenticated(self):
+        """Test 2: Usuario no autenticado no puede obtener perfil"""
+        client = APIClient()  # Cliente sin autenticar
+        response = client.get(self.profile_url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_update_profile_authenticated(self):
+        """Test 3: Usuario autenticado puede actualizar su perfil"""
+        update_data = {
+            'alias': 'nuevoalias',
+            'bio': 'Nueva biografía',
+            'country': 'Francia',
+            'preferences': {
+                'language': 'en',
+                'explicit_filter': True
+            }
+        }
+
+        response = self.client.patch(
+            self.profile_url,
+            update_data,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['alias'], 'nuevoalias')
+        self.assertEqual(response.data['bio'], 'Nueva biografía')
+        self.assertEqual(response.data['country'], 'Francia')
+        self.assertEqual(response.data['preferences']['language'], 'en')
+
+        # Verificar que se actualizó en la base de datos
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.alias, 'nuevoalias')
+        self.assertEqual(self.user.preferences['language'], 'en')
+
+    def test_update_profile_duplicate_alias(self):
+        """Test 4: No se puede usar un alias ya existente"""
+        update_data = {
+            'alias': 'aliasunico'  # Alias que ya usa other_user
+        }
+
+        response = self.client.patch(
+            self.profile_url,
+            update_data,
+            format='json'
+        )
+
+        # VERIFICACIÓN ACTUALIZADA
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn('alias', response.data['details'])
+
+        # El mensaje exacto puede variar, pero el código de error debe ser 'unique'
+        alias_error = response.data['details']['alias'][0]
+        self.assertEqual(alias_error.code, 'unique')
+
+    def test_update_profile_partial(self):
+        """Test 5: Se puede actualizar solo algunos campos"""
+        update_data = {
+            'bio': 'Solo actualizo la biografía'
+        }
+
+        response = self.client.patch(
+            self.profile_url,
+            update_data,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['bio'], 'Solo actualizo la biografía')
+        # Los demás campos deben mantenerse igual
+        self.assertEqual(response.data['alias'], 'testalias')
+        self.assertEqual(response.data['country'], 'España')
+        self.assertEqual(response.data['user_type'], 'artist')  # Tipo no cambia
+
+    def test_update_profile_invalid_preferences(self):
+        """Test 6: Preferencias inválidas retornan error"""
+        update_data = {
+            'preferences': 'esto_no_es_un_objeto'  # Preferencias inválidas
+        }
+
+        response = self.client.patch(
+            self.profile_url,
+            update_data,
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn('preferences', response.data['details'])
+
+    def test_user_type_is_read_only(self):
+        """Test 7: El tipo de usuario no se puede modificar después del registro"""
+        update_data = {
+            'user_type': 'admin'  # Intentar cambiar tipo de usuario
+        }
+
+        response = self.client.patch(
+            self.profile_url,
+            update_data,
+            format='json'
+        )
+
+        # Debería ignorar el campo user_type (no está en el serializer de update)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['user_type'], 'artist')  # No debería cambiar
