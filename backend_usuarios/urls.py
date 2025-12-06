@@ -16,7 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from users import views  # Importamos las vistas de la app users
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/v1/auth/register', views.register_user, name='register'),
+    # Aquí añadiremos más endpoints después
+    path('api/v1/auth/login', views.login_user, name='login'),
+    path('api/v1/auth/logout', views.logout_user, name='logout'),
+    path('api/v1/auth/refresh', views.refresh_token, name='refresh-token'),
+    path('api/v1/auth/password-reset/request', views.password_reset_request, name='password-reset-request'),
+    path('api/v1/auth/password-reset/validate-token', views.password_reset_validate_token, name='password-reset-validate'),
+    path('api/v1/auth/password-reset/confirm', views.password_reset_confirm, name='password-reset-confirm'),
+    path('api/v1/me', views.user_profile, name='user-profile'),
 ]

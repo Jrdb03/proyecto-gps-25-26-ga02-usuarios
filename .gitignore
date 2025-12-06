@@ -2,18 +2,22 @@
 .venv/*
 
 # Databases
-.sqlite
+*.sqlite3
 
 # Misc
 .idea
 .DS_Store
 
 # Migrations
-*/migrations
+*/migrations/*
 !*/migrations/0001_initial.py
 
 # Cached files
-*/_pycache_
+*/__pycache__
+__pycache__/
 
 # Python init files
 */_init_.py
+
+#Tests
+/testing
