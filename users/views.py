@@ -180,77 +180,76 @@ def refresh_token(request):
 def password_reset_request(request):
     """
     Endpoint para solicitar recuperación de contraseña (GA02-179)
-    Con límite simple de 3 intentos por token
+    Refactorizado para reducir complejidad cognitiva.
     """
-    if request.method == 'POST':
-        serializer = PasswordResetRequestSerializer(data=request.data)
-
-        if serializer.is_valid():
-            email = serializer.validated_data['email']
-
-            try:
-                user = User.objects.get(email=email)
-
-                # Buscar token existente no expirado
-                existing_token = PasswordResetToken.objects.filter(
-                    user=user,
-                    is_used=False,
-                    expires_at__gt=timezone.now()
-                ).first()
-
-                # Si existe un token y ya tiene 3 o más solicitudes, bloquear
-                if existing_token and existing_token.request_count >= 3:
-                    return Response({
-                        "code": "TOO_MANY_ATTEMPTS",
-                        "message": "Demasiados intentos. Solicita un nuevo enlace."
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
-                # Generar token único
-                token = secrets.token_urlsafe(32)
-
-                # Crear o actualizar token de recuperación
-                if existing_token:
-                    # Usar token existente e incrementar contador
-                    existing_token.token = token
-                    existing_token.request_count += 1
-                    existing_token.save()
-                    reset_token = existing_token
-                else:
-                    # Crear nuevo token
-                    reset_token = PasswordResetToken.objects.create(
-                        user=user,
-                        token=token,
-                        expires_at=timezone.now() + timedelta(hours=24),
-                        request_count=1
-                    )
-
-                # En desarrollo, retornamos el link para facilitar pruebas
-                reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
-
-                if settings.DEBUG:
-                    return Response({
-                        "message": "Solicitud de recuperación procesada",
-                        "reset_link": reset_link,
-                        "attempts": reset_token.request_count,  # Para ver el contador
-                        "code": "RESET_REQUEST_SUCCESS"
-                    }, status=status.HTTP_200_OK)
-                else:
-                    return Response({
-                        "message": "Si el email existe en nuestro sistema, recibirás un enlace de recuperación",
-                        "code": "RESET_REQUEST_SUCCESS"
-                    }, status=status.HTTP_200_OK)
-
-            except User.DoesNotExist:
-                return Response({
-                    "message": "Si el email existe en nuestro sistema, recibirás un enlace de recuperación",
-                    "code": "RESET_REQUEST_SUCCESS"
-                }, status=status.HTTP_200_OK)
-
+    # 1. Validación inicial (Guard Clause)
+    # Al preguntar "si NO es válido" primero, nos ahorramos un nivel de sangría en todo el código
+    serializer = PasswordResetRequestSerializer(data=request.data)
+    if not serializer.is_valid():
         return Response({
             "code": CODE_VALIDATION_ERROR,
             "message": MSG_VALIDATION_ERROR,
             "details": serializer.errors
         }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    # 2. Obtener datos
+    email = serializer.validated_data['email']
+
+    # 3. Buscar usuario
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # Si no existe, devolvemos éxito falso por seguridad y terminamos aquí.
+        return Response({
+            "message": "Si el email existe en nuestro sistema, recibirás un enlace de recuperación",
+            "code": "RESET_REQUEST_SUCCESS"
+        }, status=status.HTTP_200_OK)
+
+    # 4. Lógica de Tokens (Ahora está en el nivel principal, sin estar dentro de 'try' ni 'if')
+    existing_token = PasswordResetToken.objects.filter(
+        user=user,
+        is_used=False,
+        expires_at__gt=timezone.now()
+    ).first()
+
+    # Bloqueo por intentos
+    if existing_token and existing_token.request_count >= 3:
+        return Response({
+            "code": "TOO_MANY_ATTEMPTS",
+            "message": "Demasiados intentos. Solicita un nuevo enlace."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Generar nuevo token
+    token = secrets.token_urlsafe(32)
+
+    if existing_token:
+        existing_token.token = token
+        existing_token.request_count += 1
+        existing_token.save()
+        reset_token = existing_token
+    else:
+        reset_token = PasswordResetToken.objects.create(
+            user=user,
+            token=token,
+            expires_at=timezone.now() + timedelta(hours=24),
+            request_count=1
+        )
+
+    # 5. Respuesta final
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+
+    if settings.DEBUG:
+        return Response({
+            "message": "Solicitud de recuperación procesada",
+            "reset_link": reset_link,
+            "attempts": reset_token.request_count,
+            "code": "RESET_REQUEST_SUCCESS"
+        }, status=status.HTTP_200_OK)
+
+    return Response({
+        "message": "Si el email existe en nuestro sistema, recibirás un enlace de recuperación",
+        "code": "RESET_REQUEST_SUCCESS"
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
