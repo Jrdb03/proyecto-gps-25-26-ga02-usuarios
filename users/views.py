@@ -1,7 +1,4 @@
 from django.shortcuts import render
-
-# Create your views here.
-from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -24,7 +21,9 @@ from datetime import timedelta
 import secrets
 from django.conf import settings
 
-
+# --- CONSTANTES (Para evitar Code Smells de SonarCloud) ---
+MSG_VALIDATION_ERROR = "Error de validación"
+CODE_VALIDATION_ERROR = "VALIDATION_ERROR"
 
 @api_view(['POST'])
 def register_user(request):
@@ -43,8 +42,8 @@ def register_user(request):
         # Si hay errores de validación
         return Response(
             {
-                "code": "VALIDATION_ERROR",
-                "message": "Error de validación",
+                "code": CODE_VALIDATION_ERROR,
+                "message": MSG_VALIDATION_ERROR,
                 "details": serializer.errors
             },
             status=status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -130,8 +129,8 @@ def logout_user(request):
         # Errores de validación del serializer
         return Response(
             {
-                "code": "VALIDATION_ERROR",
-                "message": "Error de validación",
+                "code": CODE_VALIDATION_ERROR,
+                "message": MSG_VALIDATION_ERROR,
                 "details": serializer.errors
             },
             status=status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -150,7 +149,7 @@ def refresh_token(request):
         if not refresh_token:
             return Response(
                 {
-                    "code": "VALIDATION_ERROR",
+                    "code": CODE_VALIDATION_ERROR,
                     "message": "Refresh token es requerido",
                     "details": {"refresh_token": ["Este campo es requerido."]}
                 },
@@ -248,8 +247,8 @@ def password_reset_request(request):
                 }, status=status.HTTP_200_OK)
 
         return Response({
-            "code": "VALIDATION_ERROR",
-            "message": "Error de validación",
+            "code": CODE_VALIDATION_ERROR,
+            "message": MSG_VALIDATION_ERROR,
             "details": serializer.errors
         }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
@@ -287,8 +286,8 @@ def password_reset_validate_token(request):
                 }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         return Response({
-            "code": "VALIDATION_ERROR",
-            "message": "Error de validación",
+            "code": CODE_VALIDATION_ERROR,
+            "message": MSG_VALIDATION_ERROR,
             "details": serializer.errors
         }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
@@ -320,8 +319,8 @@ def password_reset_confirm(request):
             }, status=status.HTTP_200_OK)
 
         return Response({
-            "code": "VALIDATION_ERROR",
-            "message": "Error de validación",
+            "code": CODE_VALIDATION_ERROR,
+            "message": MSG_VALIDATION_ERROR,
             "details": serializer.errors
         }, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
@@ -356,8 +355,8 @@ def user_profile(request):
         # Si hay errores de validación
         return Response(
             {
-                "code": "VALIDATION_ERROR",
-                "message": "Error de validación",
+                "code": CODE_VALIDATION_ERROR,
+                "message": MSG_VALIDATION_ERROR,
                 "details": serializer.errors
             },
             status=status.HTTP_422_UNPROCESSABLE_ENTITY
