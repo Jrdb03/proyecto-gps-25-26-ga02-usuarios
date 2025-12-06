@@ -149,7 +149,7 @@ def refresh_token(request):
         if not refresh_token:
             return Response(
                 {
-                    "code": CODE_VALIDATION_ERROR,
+                    "code": CODE_VALIDATION_ERROR, # Recuerda usar las constantes que definimos antes
                     "message": "Refresh token es requerido",
                     "details": {"refresh_token": ["Este campo es requerido."]}
                 },
@@ -165,7 +165,7 @@ def refresh_token(request):
 
         return Response(new_tokens, status=status.HTTP_200_OK)
 
-    except TokenError as e:
+    except TokenError:
         # Token inválido o expirado
         return Response(
             {
